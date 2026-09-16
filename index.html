@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="it" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartDiet & Grocery</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        food: {
+                            50: '#fefce8',
+                            100: '#fef9c3',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                            700: '#a16207',
+                        },
+                        fresh: {
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Stili tematici cibo per la modalità chiara */
+        .light body {
+            background-color: #fffdf7;
+            background-image: radial-gradient(#e5e7eb 0.75px, transparent 0.75px);
+            background-size: 16px 16px;
+        }
+        .light .food-pattern {
+            background-color: #fef8ec;
+            border-color: #fde68a;
+        }
+
+        /* Stili per la modalità scura con elementi visivi cucina */
+        .dark body {
+            background-color: #0f172a;
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .dark .food-pattern {
+            background-color: #1e293b;
+            border-color: #334155;
+        }
+
+        /* Modal e Chat Overlay */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="text-gray-800 dark:text-gray-100 min-h-screen flex flex-col font-sans transition-colors duration-200">
+
+    <!-- Top Auto-Fill Banner (Si attiva quando ci sono credenziali salvate) -->
+    <div id="autofillBanner" class="hidden bg-amber-500 text-white text-xs md:text-sm py-1.5 px-4 flex justify-between items-center shadow-md">
+        <span>Credenziali trovate per quest'applicazione. Entrare automaticamente?</span>
+        <button onclick="useSavedCredentials()" class="bg-white text-amber-600 font-bold px-3 py-0.5 rounded shadow hover:bg-amber-50 transition text-xs">
+            USA CREDENZIALI
+        </button>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur border-b border-amber-200 dark:border-slate-700 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">🥗</span>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-amber-600 to-green-600 bg-clip-text text-transparent">
+                    SmartDiet & Grocery
+                </h1>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Theme Switcher Button -->
+                <button onclick="toggleTheme()" class="p-2 rounded-lg bg-amber-100 dark:bg-slate-700 text-amber-800 dark:text-amber-300 hover:opacity-80 transition flex items-center text-xs font-semibold">
+                    <span id="themeIcon" class="mr-1">☀️</span>
+                    <span id="themeText">Tema Chiaro</span>
+                </button>
+
+                <!-- Auth Status / Trigger -->
+                <div id="userProfileArea" class="hidden flex items-center space-x-2">
+                    <span id="userCityBadge" class="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 rounded-full font-medium">📍 Roma</span>
+                    <button onclick="logout()" class="text-xs text-red-500 hover:underline">Esci</button>
+                </div>
+                <button id="loginModalBtn" onclick="openAuthModal()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition">
+                    Accedi / Registrati
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+
+        <!-- Banner Benvenuto / Intro -->
+        <section class="food-pattern p-6 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h2 class="text-2xl font-bold text-amber-900 dark:text-amber-200">Pianifica le tue Diete e la Spesa con l'IA</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Carica la dieta, controlla il frigo, trova i supermercati vicini e ricalcola le ricette in un click.</p>
+            </div>
+            <div class="flex gap-2">
+                <span class="text-3xl">🥑</span>
+                <span class="text-3xl">🥦</span>
+                <span class="text-3xl">🍎</span>
+            </div>
+        </section>
+
+        <!-- Main Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Colonna 1: Gestione Diete & Frigo -->
+            <div class="space-y-6">
+                <!-- Card 1: Caricamento e Programmazione Diete -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg flex items-center text-amber-700 dark:text-amber-400">
+                            <span class="mr-2">📋</span> Programmazione Diete
+                        </h3>
+                    </div>
+
+                    <form id="uploadDietForm" onsubmit="addDiet(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1">Nome della Dieta</label>
+                            <input type="text" id="dietTitle" placeholder="Es. Dieta Ipocalorica Settembre" required
+                                class="w-full text-xs p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1">File Dieta (PDF, Immagine, TXT)</label>
+                            <input type="file" id="dietFile" required
+                                class="w-full text-xs p-1 border border-gray-200 dark:border-slate-600 rounded-lg dark:bg-slate-700">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Data Inizio</label>
+                                <input type="date" id="dietStart" required
+                                    class="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Data Fine</label>
+                                <input type="date" id="dietEnd" required
+                                    class="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 rounded-lg text-xs transition shadow">
+                            + Aggiungi Dieta al Calendario
+                        </button>
+                    </form>
+
+                    <!-- Lista Diete Caricate -->
+                    <div class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Diete Programmate</h4>
+                        <div id="dietsList" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            <!-- Inserite dinamicamente via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Inventario Frigo -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                    <h3 class="font-bold text-lg mb-3 flex items-center text-blue-600 dark:text-blue-400">
+                        <span class="mr-2">🧊</span> Inventario Frigo Attuale
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Inserisci quello che hai già in casa per non ricomprarlo nella spesa.</p>
+
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="fridgeItemInput" placeholder="Es. Uova, Pollo, Zucchine..."
+                            class="flex-grow text-xs p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="addFridgeItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
+                            Aggiungi
+                        </button>
+                    </div>
+
+                    <div id="fridgeBadges" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                        <!-- Badges frigo inseriti qui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colonna 2: Lista della Spesa Intelligente & Analisi Qualità -->
+            <div class="space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 h-full flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-lg flex items-center text-green-600 dark:text-green-400">
+                                <span class="mr-2">🛒</span> Spesa della Settimana
+                            </h3>
+                            <button onclick="generateWeeklyList()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg transition font-semibold">
+                                Calcola Lista
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">L'IA incrocia la dieta attiva con l'inventario frigo e la tua città registrata.</p>
+
+                        <!-- Selezione della Settimana -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold mb-1">Seleziona Settimana</label>
+                            <select id="weekSelector" onchange="updateShoppingListForWeek()" class="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                                <option value="1">Settimana 1 (Dieta Attiva)</option>
+                                <option value="2">Settimana 2 (Dieta Attiva)</option>
+                            </select>
+                        </div>
+
+                        <!-- Qualità e Foto Prodotto -->
+                        <div class="bg-amber-50 dark:bg-slate-700/50 p-3 rounded-lg mb-4 border border-amber-200 dark:border-slate-600 text-xs space-y-2">
+                            <span class="font-bold text-amber-800 dark:text-amber-300">Analisi Qualità / Preferenze IA:</span>
+                            <div class="flex gap-2 items-center">
+                                <input type="text" id="prefQualityInput" placeholder="Es. Preferisco Olio BIO, Pasta Integrale..." 
+                                    class="w-full p-2 text-xs rounded border border-gray-200 dark:border-slate-600 dark:bg-slate-800">
+                            </div>
+                            <div class="flex items-center justify-between pt-1">
+                                <label class="cursor-pointer text-amber-700 dark:text-amber-300 hover:underline flex items-center">
+                                    <span>📸 Carica foto prodotto per analisi IA</span>
+                                    <input type="file" id="productPhotoUpload" class="hidden" onchange="analyzeProductPhoto(event)">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Lista Spesa Risultati -->
+                        <div class="space-y-2 max-h-80 overflow-y-auto pr-1" id="shoppingListContainer">
+                            <p class="text-xs text-gray-400 italic text-center py-6">Clicca su "Calcola Lista" per generare la spesa settimanale.</p>
+                        </div>
+                    </div>
+
+                    <div id="supermarketInfoFooter" class="mt-4 pt-3 border-t border-gray-100 dark:border-slate-700 text-xs text-gray-500 flex items-center justify-between">
+                        <span>Città di riferimento: <strong id="userCityDisplay">Roma</strong></span>
+                        <span class="text-green-600 font-semibold">Supermercati Locali Mappati</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colonna 3: Ricette Modulabili & Porzioni Dinamiche -->
+            <div class="space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                    <h3 class="font-bold text-lg mb-2 flex items-center text-purple-600 dark:text-purple-400">
+                        <span class="mr-2">🍽️</span> Ricette Consigliate dal Pasto
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Scegli una ricetta classica o sfiziosa. L'IA ricalcolerà ingredienti e calorie per le persone selezionate.</p>
+
+                    <!-- Selector Ricetta -->
+                    <div class="space-y-3 mb-4">
+                        <label class="block text-xs font-semibold">Seleziona Tipo di Ricetta</label>
+                        <select id="recipeSelector" onchange="loadSelectedRecipe()" class="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                            <option value="classica">Classica: Riso Basmati, Petto di Pollo e Zucchine</option>
+                            <option value="sfiziosa">Sfiziosa: Wrap Integrale di Pollo Speziato e Verdure Croccanti</option>
+                        </select>
+                    </div>
+
+                    <!-- Scheda Ricetta Dinamica -->
+                    <div class="bg-gray-50 dark:bg-slate-700/40 p-4 rounded-xl border border-gray-200 dark:border-slate-600 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <h4 id="recipeTitleDisplay" class="font-bold text-sm text-purple-900 dark:text-purple-300">Riso Basmati, Petto di Pollo e Zucchine</h4>
+                            <span id="kcalDisplay" class="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs font-bold px-2 py-0.5 rounded-full">
+                                450 kcal / porzione
+                            </span>
+                        </div>
+
+                        <!-- Controllo Persone / Porzioni -->
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 flex justify-between items-center">
+                            <label class="text-xs font-semibold">Per quante persone cucini?</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="number" id="portionCount" value="1" min="1" max="20" onchange="recalculateRecipePortions()"
+                                    class="w-14 text-center text-xs font-bold p-1 rounded border border-gray-300 dark:border-slate-500 dark:bg-slate-700">
+                                <span class="text-xs text-gray-500">pers.</span>
+                            </div>
+                        </div>
+
+                        <!-- Ingredienti Calcolati -->
+                        <div>
+                            <h5 class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Dosi Ricalcolate:</h5>
+                            <ul id="recipeIngredientsList" class="text-xs space-y-1 list-disc list-inside text-gray-700 dark:text-gray-300">
+                                <!-- Generati dinamicamente -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Floating AI Chat Assistant Button (Sempre presente in basso a destra) -->
+    <div class="fixed bottom-5 right-5 z-40">
+        <button onclick="toggleAiChat()" class="bg-gradient-to-r from-amber-500 to-green-600 hover:from-amber-600 hover:to-green-700 text-white p-3.5 rounded-full shadow-xl flex items-center space-x-2 transition transform hover:scale-105">
+            <span class="text-xl">🤖</span>
+            <span class="text-xs font-bold hidden md:inline">Assistente Dietetico IA</span>
+        </button>
+    </div>
+
+    <!-- AI Chat Window (Modal Fluttuante) -->
+    <div id="aiChatWindow" class="hidden fixed bottom-20 right-5 w-80 md:w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 z-50 flex flex-col h-[450px] overflow-hidden">
+        <!-- Chat Header -->
+        <div class="bg-gradient-to-r from-amber-500 to-green-600 text-white p-3.5 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="text-lg">🤖</span>
+                <div>
+                    <h4 class="font-bold text-xs">Assistente Nutrizionale IA</h4>
+                    <p class="text-[10px] opacity-80">Accesso completo a diete, frigo e dati</p>
+                </div>
+            </div>
+            <button onclick="toggleAiChat()" class="text-white hover:text-gray-200 text-sm font-bold">✕</button>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="chatMessages" class="flex-grow p-3 overflow-y-auto space-y-2 text-xs">
+            <div class="bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 p-2.5 rounded-xl max-w-[85%]">
+                Ciao! Sono la tua IA assistente. Posso consultare i tuoi file dieta, cosa hai nel frigo e suggerirti consigli personalizzati. Cosa desideri sapere?
+            </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div class="p-2.5 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/80 flex gap-2">
+            <input type="text" id="chatInputPrompt" placeholder="Chiedi qualcosa sulla dieta o ricette..." onkeydown="if(event.key==='Enter') sendChatMessage()"
+                class="flex-grow text-xs p-2 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <button onclick="sendChatMessage()" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
+                Invia
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Autenticazione (Accesso / Registrazione) -->
+    <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-200 dark:border-slate-700 relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
+
+            <h3 class="text-xl font-bold text-center mb-4 text-amber-700 dark:text-amber-400">Accedi a SmartDiet</h3>
+
+            <!-- Social OAuth Buttons -->
+            <div class="space-y-2 mb-4">
+                <button onclick="mockSocialLogin('Google')" class="w-full flex items-center justify-center space-x-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-xs font-semibold p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition">
+                    <span>🌐 Continua con Google</span>
+                </button>
+                <button onclick="mockSocialLogin('Apple')" class="w-full flex items-center justify-center space-x-2 bg-black text-white text-xs font-semibold p-2.5 rounded-lg hover:opacity-90 transition">
+                    <span>🍏 Continua con ID Apple</span>
+                </button>
+            </div>
+
+            <div class="relative flex py-2 items-center">
+                <div class="flex-grow border-t border-gray-200 dark:border-slate-600"></div>
+                <span class="flex-shrink mx-2 text-[10px] text-gray-400 uppercase">oppure email</span>
+                <div class="flex-grow border-t border-gray-200 dark:border-slate-600"></div>
+            </div>
+
+            <!-- Login / Signup Form -->
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3 mt-2">
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Email</label>
+                    <input type="email" id="authEmail" required placeholder="tuaemail@esempio.it"
+                        class="w-full text-xs p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Password</label>
+                    <input type="password" id="authPassword" required placeholder="••••••••"
+                        class="w-full text-xs p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                </div>
+                <div id="cityField" class="hidden">
+                    <label class="block text-xs font-semibold mb-1">Città di Residenza (per Supermercati)</label>
+                    <input type="text" id="authCity" placeholder="Es. Roma, Milano, Campobasso..."
+                        class="w-full text-xs p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-700">
+                </div>
+
+                <!-- Bottone Accedi -->
+                <button type="submit" id="authSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-lg text-xs transition">
+                    Accedi
+                </button>
+
+                <!-- Bottone Registrazione Medio ben visibile di colore diverso -->
+                <div class="text-center pt-2">
+                    <button type="button" onclick="toggleAuthMode()" id="toggleAuthBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition">
+                        Non hai un account? Registrati qui
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- STATO DELL'APPLICAZIONE ---
+        let state = {
+            theme: 'light',
+            currentUser: null,
+            diets: [],
+            fridge: ['Uova', 'Latte di Mandorla'],
+            shoppingList: [],
+            isRegisterMode: false,
+            currentRecipeBase: {
+                name: "Riso Basmati, Petto di Pollo e Zucchine",
+                kcalPerPerson: 450,
+                ingredients: [
+                    { name: "Riso Basmati", baseQty: 80, unit: "g" },
+                    { name: "Petto di Pollo", baseQty: 150, unit: "g" },
+                    { name: "Zucchine", baseQty: 120, unit: "g" },
+                    { name: "Olio Extravergine d'Oliva", baseQty: 10, unit: "g" }
+                ]
+            }
+        };
+
+        // --- GESTIONE TEMA (CHIARO / SCURO) ---
+        function toggleTheme() {
+            const htmlEl = document.documentElement;
+            if (htmlEl.classList.contains('light')) {
+                htmlEl.classList.remove('light');
+                htmlEl.classList.add('dark');
+                document.getElementById('themeIcon').textContent = '🌙';
+                document.getElementById('themeText').textContent = 'Tema Scuro';
+                state.theme = 'dark';
+            } else {
+                htmlEl.classList.remove('dark');
+                htmlEl.classList.add('light');
+                document.getElementById('themeIcon').textContent = '☀️';
+                document.getElementById('themeText').textContent = 'Tema Chiaro';
+                state.theme = 'light';
+            }
+        }
+
+        // --- AUTENTICAZIONE E CREDENZIALI SALVATE ---
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+
+        function toggleAuthMode() {
+            state.isRegisterMode = !state.isRegisterMode;
+            const cityField = document.getElementById('cityField');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const toggleBtn = document.getElementById('toggleAuthBtn');
+
+            if (state.isRegisterMode) {
+                cityField.classList.remove('hidden');
+                submitBtn.textContent = 'Completa Registrazione';
+                toggleBtn.textContent = 'Hai già un account? Accedi';
+                toggleBtn.className = "bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition";
+            } else {
+                cityField.classList.add('hidden');
+                submitBtn.textContent = 'Accedi';
+                toggleBtn.textContent = 'Non hai un account? Registrati qui';
+                toggleBtn.className = "bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition";
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const city = document.getElementById('authCity').value || 'Roma';
+
+            localStorage.setItem('saved_email', email);
+            localStorage.setItem('saved_password', password);
+            localStorage.setItem('saved_city', city);
+
+            loginUser(email, city);
+            closeAuthModal();
+            checkSavedCredentials();
+        }
+
+        function mockSocialLogin(provider) {
+            loginUser(`utente.${provider.toLowerCase()}@example.com`, 'Roma');
+            closeAuthModal();
+        }
+
+        function loginUser(email, city) {
+            state.currentUser = { email, city };
+            document.getElementById('userProfileArea').classList.remove('hidden');
+            document.getElementById('loginModalBtn').classList.add('hidden');
+            document.getElementById('userCityBadge').textContent = `📍 ${city}`;
+            document.getElementById('userCityDisplay').textContent = city;
+        }
+
+        function logout() {
+            state.currentUser = null;
+            document.getElementById('userProfileArea').classList.add('hidden');
+            document.getElementById('loginModalBtn').classList.remove('hidden');
+        }
+
+        function checkSavedCredentials() {
+            if (localStorage.getItem('saved_email')) {
+                document.getElementById('autofillBanner').classList.remove('hidden');
+            }
+        }
+
+        function useSavedCredentials() {
+            const email = localStorage.getItem('saved_email');
+            const city = localStorage.getItem('saved_city') || 'Roma';
+            loginUser(email, city);
+            document.getElementById('autofillBanner').classList.add('hidden');
+        }
+
+        // --- GESTIONE DIETE E PROGRAMMAZIONE ---
+        function addDiet(e) {
+            e.preventDefault();
+            const title = document.getElementById('dietTitle').value;
+            const start = document.getElementById('dietStart').value;
+            const end = document.getElementById('dietEnd').value;
+
+            const diet = { id: Date.now(), title, start, end };
+            state.diets.push(diet);
+            renderDiets();
+
+            document.getElementById('uploadDietForm').reset();
+        }
+
+        function renderDiets() {
+            const list = document.getElementById('dietsList');
+            list.innerHTML = '';
+            state.diets.forEach(d => {
+                const item = document.createElement('div');
+                item.className = "text-xs p-2 rounded-lg bg-amber-50 dark:bg-slate-700 border border-amber-200 dark:border-slate-600 flex justify-between items-center";
+                item.innerHTML = `
+                    <div>
+                        <strong class="text-amber-900 dark:text-amber-200">${d.title}</strong>
+                        <div class="text-[10px] text-gray-500 dark:text-gray-400">${d.start} ➔ ${d.end}</div>
+                    </div>
+                    <button onclick="removeDiet(${d.id})" class="text-red-500 font-bold hover:underline text-xs">Elimina</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function removeDiet(id) {
+            state.diets = state.diets.filter(d => d.id !== id);
+            renderDiets();
+        }
+
+        // --- GESTIONE INVENTARIO FRIGO ---
+        function addFridgeItem() {
+            const input = document.getElementById('fridgeItemInput');
+            const val = input.value.trim();
+            if (val && !state.fridge.includes(val)) {
+                state.fridge.push(val);
+                renderFridge();
+                input.value = '';
+            }
+        }
+
+        function removeFridgeItem(item) {
+            state.fridge = state.fridge.filter(f => f !== item);
+            renderFridge();
+        }
+
+        function renderFridge() {
+            const container = document.getElementById('fridgeBadges');
+            container.innerHTML = '';
+            state.fridge.forEach(f => {
+                const badge = document.createElement('span');
+                badge.className = "inline-flex items-center text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2.5 py-1 rounded-full font-medium";
+                badge.innerHTML = `${f} <button onclick="removeFridgeItem('${f}')" class="ml-1.5 font-bold hover:text-red-500">×</button>`;
+                container.appendChild(badge);
+            });
+        }
+
+        // --- SPESA INTELLIGENTE & ANALISI IA ---
+        function generateWeeklyList() {
+            const city = state.currentUser ? state.currentUser.city : 'Roma';
+            const prefQuality = document.getElementById('prefQualityInput').value;
+
+            const baseDietItems = [
+                { name: 'Riso Basmati', cat: 'Cereali', shop: 'Conad' },
+                { name: 'Petto di Pollo', cat: 'Carni', shop: 'Coop / Esselunga' },
+                { name: 'Zucchine Bio', cat: 'Verdure', shop: 'Mercato Locale' },
+                { name: 'Olio Extravergine', cat: 'Condimenti', shop: 'Carrefour' },
+                { name: 'Uova Fresche', cat: 'Proteine', shop: 'Conad' },
+                { name: 'Yogurt Greco 0%', cat: 'Latticini', shop: 'Eurospin' }
+            ];
+
+            const filteredItems = baseDietItems.filter(item => {
+                return !state.fridge.some(fridgeItem => 
+                    item.name.toLowerCase().includes(fridgeItem.toLowerCase()) || 
+                    fridgeItem.toLowerCase().includes(item.name.toLowerCase())
+                );
+            });
+
+            const container = document.getElementById('shoppingListContainer');
+            container.innerHTML = '';
+
+            if (filteredItems.length === 0) {
+                container.innerHTML = '<p class="text-xs text-green-600 font-semibold text-center py-4">Hai già tutti gli ingredienti necessari nel frigo!</p>';
+                return;
+            }
+
+            filteredItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-2.5 rounded-lg bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 flex justify-between items-center text-xs";
+                div.innerHTML = `
+                    <div>
+                        <strong class="text-gray-800 dark:text-gray-200">${item.name}</strong>
+                        <div class="text-[10px] text-green-600 dark:text-green-400 font-medium">📍 Trovabile a: ${item.shop} (${city})</div>
+                        ${prefQuality ? `<div class="text-[9px] text-amber-600 dark:text-amber-400">Analisi Qualità IA: Opzione più salutare ed economica selezionata</div>` : ''}
+                    </div>
+                    <span class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px] px-2 py-0.5 rounded font-bold">In Lista</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateShoppingListForWeek() {
+            generateWeeklyList();
+        }
+
+        function analyzeProductPhoto(e) {
+            const file = e.target.files[0];
+            if (file) {
+                alert(`Analisi IA avviata per l'immagine: ${file.name}. Valori nutrizionali e ingredienti rilevati con successo!`);
+            }
+        }
+
+        // --- RICETTE & DOSI DINAMICHE ---
+        function loadSelectedRecipe() {
+            const val = document.getElementById('recipeSelector').value;
+            if (val === 'classica') {
+                state.currentRecipeBase = {
+                    name: "Riso Basmati, Petto di Pollo e Zucchine",
+                    kcalPerPerson: 450,
+                    ingredients: [
+                        { name: "Riso Basmati", baseQty: 80, unit: "g" },
+                        { name: "Petto di Pollo", baseQty: 150, unit: "g" },
+                        { name: "Zucchine", baseQty: 120, unit: "g" },
+                        { name: "Olio Extravergine d'Oliva", baseQty: 10, unit: "g" }
+                    ]
+                };
+            } else {
+                state.currentRecipeBase = {
+                    name: "Wrap Integrale di Pollo Speziato e Verdure",
+                    kcalPerPerson: 520,
+                    ingredients: [
+                        { name: "Wrap Integrale", baseQty: 1, unit: "pezzo" },
+                        { name: "Petto di Pollo a straccetti", baseQty: 140, unit: "g" },
+                        { name: "Peperoni e Lettuga", baseQty: 100, unit: "g" },
+                        { name: "Salsa Yogurt Magro", baseQty: 30, unit: "g" }
+                    ]
+                };
+            }
+            recalculateRecipePortions();
+        }
+
+        function recalculateRecipePortions() {
+            const count = parseInt(document.getElementById('portionCount').value) || 1;
+            const recipe = state.currentRecipeBase;
+
+            document.getElementById('recipeTitleDisplay').textContent = recipe.name;
+            document.getElementById('kcalDisplay').textContent = `${recipe.kcalPerPerson} kcal / porzione (Tot: ${recipe.kcalPerPerson * count} kcal)`;
+
+            const list = document.getElementById('recipeIngredientsList');
+            list.innerHTML = '';
+
+            recipe.ingredients.forEach(ing => {
+                const totalQty = ing.baseQty * count;
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${ing.name}</strong>: ${totalQty} ${ing.unit}`;
+                list.appendChild(li);
+            });
+        }
+
+        // --- AI CHAT ASSISTANT ---
+        function toggleAiChat() {
+            document.getElementById('aiChatWindow').classList.toggle('hidden');
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInputPrompt');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const container = document.getElementById('chatMessages');
+
+            // User message
+            const userDiv = document.createElement('div');
+            userDiv.className = "bg-amber-500 text-white p-2.5 rounded-xl max-w-[85%] ml-auto";
+            userDiv.textContent = msg;
+            container.appendChild(userDiv);
+
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+
+            // AI Response simulation
+            setTimeout(() => {
+                const aiDiv = document.createElement('div');
+                aiDiv.className = "bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 p-2.5 rounded-xl max-w-[85%]";
+                
+                if (msg.toLowerCase().includes('cena') || msg.toLowerCase().includes('ricetta')) {
+                    aiDiv.textContent = `In base al tuo frigo (${state.fridge.join(', ')}), ti consiglio di preparare una frittata con verdure oppure consultare le ricette ricalcolate nella scheda a destra!`;
+                } else {
+                    aiDiv.textContent = `Ho verificato la tua richiesta. Posso aiutarti a sincronizzare i file della tua dieta, analizzare gli alimenti o filtrare la spesa per la tua città.`;
+                }
+                
+                container.appendChild(aiDiv);
+                container.scrollTop = container.scrollHeight;
+            }, 600);
+        }
+
+        // Inizializzazione
+        window.onload = function() {
+            renderFridge();
+            recalculateRecipePortions();
+            checkSavedCredentials();
+        };
+    </script>
+</body>
+</html>
